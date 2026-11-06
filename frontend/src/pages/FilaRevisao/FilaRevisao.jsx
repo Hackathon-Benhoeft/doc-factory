@@ -1,6 +1,7 @@
 // Fila de revisão: pendentes com a "Sugestão da IA" (pré-revisão) e as ações do revisor.
 import { useState } from 'react';
 import { Sparkles } from 'lucide-react';
+import AuthenticatedImage from '../../components/AuthenticatedImage';
 import Layout from '../../components/Layout';
 import { Cartao, ComDados, Erro, Selo, botao, botaoPrimario, campo } from '../../components/Estados';
 import useApi from '../../hooks/useApi';
@@ -12,9 +13,9 @@ const ACAO_TEXTO = { aprovar: 'Aprovar como está', alterar_tipo: 'Alterar o tip
 function Miniaturas({ doc }) {
   const paginas = Array.from({ length: doc.n_paginas }, (_, i) => doc.pagina_inicio + i).slice(0, 4);
   return <div className="flex gap-2">
-    {paginas.map(n => <img key={n} className="h-24 w-[68px] rounded border border-slate-200 bg-slate-50 object-cover"
-                           src={`${api.defaults.baseURL}/lotes/${doc.lote_id}/paginas/${n}/imagem?thumb=true`}
-                           alt={`Página ${n + 1}`} loading="lazy" />)}
+    {paginas.map(n => <AuthenticatedImage key={n} className="h-24 w-[68px] rounded border border-slate-200 bg-slate-50 object-cover"
+                                          src={`/lotes/${doc.lote_id}/paginas/${n}/imagem?thumb=true`}
+                                          alt={`Página ${n + 1}`} />)}
   </div>;
 }
 

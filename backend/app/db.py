@@ -46,6 +46,10 @@ def init_db():
     from app import models  # noqa: F401  (registra as tabelas)
     Base.metadata.create_all(engine)
     migrar_colunas()
+    promovidos = migrar_perfis_revisor()
+    if promovidos:
+        import logging
+        logging.getLogger(__name__).info("Promovidos %s usuários para o perfil revisor", promovidos)
     if E_POSTGRES:
         _ativar_unaccent()
 
@@ -96,3 +100,12 @@ def migrar_colunas() -> list[str]:
                 conn.execute(text(ddl))
                 adicionadas.append(f"{tabela.name}.{col.name}")
     return adicionadas
+
+
+def migrar_perfis_revisor() -> int:
+    """Promove contas analistas para revisor, preservando contas admin."""
+    from sqlalchemy import text
+
+    with engine.begin() as conn:
+        resultado = conn.execute(text("UPDATE usuarios SET perfil = 'revisor' WHERE perfil = 'analista'"))
+    return max(resultado.rowcount, 0)

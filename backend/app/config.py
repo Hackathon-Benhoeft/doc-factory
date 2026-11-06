@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     AMBIENTE: str = "desenvolvimento"   # desenvolvimento | producao
 
     # --- Segurança -------------------------------------------------------
-    CADASTRO_ABERTO: bool = True        # /auth/registrar: qualquer pessoa cria conta de analista (desligue em produção)
+    CADASTRO_ABERTO: bool = True        # /auth/registrar: qualquer pessoa cria conta de revisor (desligue em produção)
     LOGIN_MAX_TENTATIVAS: int = 5       # erros seguidos de senha antes de bloquear o login
     LOGIN_BLOQUEIO_MIN: int = 5         # minutos de bloqueio
     MAX_MEGAPIXELS_PAGINA: float = 60.0 # página maior que isso é renderizada com DPI menor (protege a memória)
@@ -49,7 +49,7 @@ class Settings(BaseSettings):
     CPF_SEGREDO: str | None = None      # segredo da impressão digital do CPF (dossiê); defina em produção
 
     # --- Classificação / revisão ----------------------------------------
-    LIMIAR_REVISAO: float = 0.80       # abaixo disso → fila de revisão humana
+    LIMIAR_REVISAO: float = 0.70       # abaixo disso → fila de revisão humana
     LIMIAR_LLM: float = 0.75            # regra abaixo disso → consulta o modelo
     LLM_SEMPRE: bool = False            # True = modelo em toda página (2ª opinião)
     BRANCO_COMO_SEPARADOR: bool = True  # página em branco fecha o documento atual

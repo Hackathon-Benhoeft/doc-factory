@@ -62,7 +62,7 @@ docker compose up --build --scale worker=3
 ```
 - **Frontend:** `http://localhost:5173`
 - **API & Swagger:** `http://localhost:8000/docs`
-- O login fica ativo no Docker Compose. Crie uma conta em `http://localhost:5173/cadastro`; novas contas recebem o perfil **analista**.
+- O login fica ativo no Docker Compose. Crie uma conta em `http://localhost:5173/cadastro`; novas contas recebem o perfil **revisor**. Ao iniciar, contas existentes com perfil analista também são promovidas para revisor; administradores mantêm o perfil.
 - Defina `JWT_SEGREDO` no `backend/.env` para manter tokens válidos após reinicializações. Para criar um administrador inicial, defina `ADMIN_SENHA` antes de iniciar pela primeira vez.
 
 ### 2. Localmente (Desenvolvimento Rápido)

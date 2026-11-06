@@ -48,7 +48,11 @@ export default function RelatorioPrivacidade({ loteId, concluido, recarregar = 0
     let ativo = true;
     buscarRelatorioPrivacidade(loteId)
       .then((dados) => ativo && setResultado({ chave, dados }))
-      .catch((e) => ativo && setResultado({ chave, erro: mensagemDeErro(e, 'Não foi possível gerar o relatório de privacidade.') }));
+      .catch((e) => {
+        if (!ativo) return;
+        if (e.response?.status === 409) setResultado({ chave, aguardando: true });
+        else setResultado({ chave, erro: mensagemDeErro(e, 'Não foi possível gerar o relatório de privacidade.') });
+      });
     return () => { ativo = false; };
   }, [loteId, concluido, chave]);
 
@@ -70,6 +74,14 @@ export default function RelatorioPrivacidade({ loteId, concluido, recarregar = 0
       <section aria-labelledby="titulo-privacidade" className={moldura}>
         {titulo}
         <p role="status" className="text-sm text-slate-500">Gerando relatório...</p>
+      </section>
+    );
+  }
+  if (atual.aguardando) {
+    return (
+      <section aria-labelledby="titulo-privacidade" className={moldura}>
+        {titulo}
+        <p role="status" className="text-sm text-slate-500">O lote está sendo processado; o relatório ficará disponível ao concluir.</p>
       </section>
     );
   }

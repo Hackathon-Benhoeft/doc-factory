@@ -37,7 +37,7 @@ def problemas_de_seguranca() -> list[str]:
     if not settings.CPF_SEGREDO:
         p.append("CPF_SEGREDO não definido: o segredo da impressão do CPF fica no próprio banco")
     if settings.AUTH_ATIVO and settings.CADASTRO_ABERTO:
-        p.append("CADASTRO_ABERTO=true: qualquer pessoa cria uma conta de analista e vê os documentos")
+        p.append("CADASTRO_ABERTO=true: qualquer pessoa cria uma conta de revisor, podendo revisar documentos")
     if settings.ALERTAS_MODO == "real":
         from app.alertas import canais
         if not (canais.email_configurado() or canais.whatsapp_configurado()):

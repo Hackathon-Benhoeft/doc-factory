@@ -179,7 +179,7 @@ documento vai para revisão.
 **Confiança do documento.** É a menor entre a confiança do tipo, a de cada corte e a qualidade do OCR.
 O documento vai para a fila de revisão se:
 
-- a confiança ficar abaixo de `LIMIAR_REVISAO`;
+- a confiança ficar abaixo de `LIMIAR_REVISAO` (padrão: 70%);
 - o tipo for desconhecido;
 - regras e modelo discordarem;
 - a contagem "1 de N" não bater com o número de páginas.

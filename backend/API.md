@@ -18,7 +18,8 @@ CORS já libera `http://localhost:5173` (Vite) e `http://localhost:4200`. Para o
 
 ## Cadastro e autenticação
 
-- `POST /auth/registrar` recebe `{login, nome, senha}`, cria uma conta de perfil `analista` e devolve `{access_token, perfil}`.
+- `POST /auth/registrar` recebe `{login, nome, senha}`, cria uma conta de perfil `revisor` e devolve `{access_token, perfil}`.
+- Ao iniciar, contas existentes com perfil `analista` são promovidas para `revisor`; contas `admin` permanecem administradoras. Ao criar usuários via `POST /usuarios`, uma solicitação de perfil `analista` também resulta em `revisor`.
 - `POST /auth/login` recebe formulário `username` e `password`; envie o token retornado no cabeçalho `Authorization` das rotas protegidas.
 - O Docker Compose ativa `AUTH_ATIVO`. No desenvolvimento local, habilite essa opção para proteger as rotas do backend.
 - Com `AUTH_ATIVO=true`, as rotas protegidas usam JWT; a chave compartilhada `API_KEY` é usada apenas no modo sem autenticação por usuário.
@@ -202,7 +203,7 @@ modelo) e o trecho anonimizado vira exemplo para o modelo.
 - **500** — erro inesperado: `erro.mensagem` traz um código de ocorrência ("Informe o código 5383630e ao suporte");
   o detalhe técnico fica só no log do servidor.
 - **401** — sem login / token expirado → mandar para a tela de login.
-- **403** — perfil sem permissão (ex.: analista pedindo o PDF original).
+- **403** — perfil sem permissão (ex.: revisor tentando administrar usuários).
 - **409** — arquivo já enviado (`erro.detalhe.lote_id`) ou lote ainda em processamento.
 - **413 / 415** — arquivo grande demais / tipo não aceito (o conteúdo é conferido, não só a extensão).
 - **429** — login bloqueado por tentativas erradas; respeite o cabeçalho `Retry-After` (segundos).

@@ -68,7 +68,7 @@ def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get
 
 @router.post("/auth/registrar", response_model=TokenOut, status_code=201)
 def registrar(dados: CadastroIn, db: Session = Depends(get_db)):
-    """Cria uma conta de analista e autentica o usuário (só com CADASTRO_ABERTO=true)."""
+    """Cria uma conta de revisor e autentica o usuário (só com CADASTRO_ABERTO=true)."""
     if not settings.CADASTRO_ABERTO:
         raise HTTPException(403, "Cadastro desativado: peça a um administrador para criar sua conta")
     if db.scalar(select(Usuario).where(Usuario.login == dados.login)):
@@ -77,7 +77,7 @@ def registrar(dados: CadastroIn, db: Session = Depends(get_db)):
     usuario = Usuario(
         login=dados.login,
         nome=dados.nome,
-        perfil="analista",
+        perfil="revisor",
         senha_hash=hash_senha(dados.senha),
     )
     db.add(usuario)
@@ -114,7 +114,8 @@ def criar_usuario(dados: UsuarioIn, db: Session = Depends(get_db), _u: UsuarioAt
     _exigir_login_ativo()
     if db.scalar(select(Usuario).where(Usuario.login == dados.login)):
         raise HTTPException(409, "Login já existe")
-    u = Usuario(login=dados.login, nome=dados.nome, perfil=dados.perfil, senha_hash=hash_senha(dados.senha))
+    perfil = "revisor" if dados.perfil == "analista" else dados.perfil
+    u = Usuario(login=dados.login, nome=dados.nome, perfil=perfil, senha_hash=hash_senha(dados.senha))
     db.add(u)
     db.commit()
     return u

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Sidebar from '../../components/Sidebar';
 import Header from '../../components/Header';
+import AuthenticatedImage from '../../components/AuthenticatedImage';
 import api from '../../services/api';
 import RelatorioPrivacidade from '../../components/Privacidade/RelatorioPrivacidade';
 import PainelAcerto from '../../components/Documents/PainelAcerto';
@@ -23,6 +24,7 @@ export default function Documents() {
   const [corte, setCorte] = useState('');
   const [tipo, setTipo] = useState('');
   const [versaoRelatorio, setVersaoRelatorio] = useState(0);   // sobe após revisar/reprocessar: o relatório de privacidade é buscado de novo
+  const [reprocessando, setReprocessando] = useState(false);
   const [regrasLote, setRegrasLote] = useState('');             // regras de separação só para o próximo envio
   const [verAcerto, setVerAcerto] = useState(false);
   const lote = lotes.find(l => l.id === loteAtivo);
@@ -74,11 +76,25 @@ export default function Documents() {
   }
 
   async function reprocessar(tudo) {
+    if (reprocessando || lote?.status === 'processando' || lote?.status === 'segmentando') return;
+    setReprocessando(true);
     try {
+      if (!tudo) {
+        const { data: paginas } = await api.get(`/lotes/${loteAtivo}/paginas`);
+        if (!paginas.some(pagina => ['erro', 'falhou'].includes(pagina.status))) {
+          setErro('Não há páginas com erro para reprocessar. Para executar novamente, escolha “Reprocessar lote completo”.');
+          return;
+        }
+      }
       await api.post(`/lotes/${loteAtivo}/reprocessar`, null, { params: { tudo } });
-      setAberto(null); setVersaoRelatorio(v => v + 1); await atualizar();
-    } catch (e) { setErro(e.response?.data?.erro?.mensagem || 'Não foi possível reprocessar o lote.'); }
+      setAberto(null);
+      await atualizar();
+      setVersaoRelatorio(v => v + 1);
+    } catch (e) { setErro(e.response?.data?.erro?.mensagem || e.response?.data?.detail || 'Não foi possível reprocessar o lote.'); }
+    finally { setReprocessando(false); }
   }
+
+  const loteProcessando = lote?.status === 'processando' || lote?.status === 'segmentando';
 
   return <div className="min-h-screen bg-slate-50 flex font-sans antialiased">
     <Sidebar /><div className="flex-1 ml-64 flex flex-col"><Header />
@@ -105,7 +121,7 @@ export default function Documents() {
         {loteAtivo && lotes.find(l => l.id === loteAtivo)?.alertas?.filter(a => a.codigo === 'paginas_incerto').map(a =>
           <div key={a.codigo} role="alert" className="rounded-xl bg-amber-50 p-4 text-sm text-amber-800">{a.mensagem} {a.evidencia}</div>
         )}
-        {loteAtivo && <div className="flex flex-wrap gap-2"><button className={button} onClick={() => reprocessar(false)}>Reprocessar páginas com erro</button><button className={button} onClick={() => reprocessar(true)}>Reprocessar lote completo</button>
+        {loteAtivo && <div className="flex flex-wrap gap-2"><button className={button} disabled={reprocessando || loteProcessando} onClick={() => reprocessar(false)}>{reprocessando || loteProcessando ? 'Aguardando processamento...' : 'Reprocessar páginas com erro'}</button><button className={button} disabled={reprocessando || loteProcessando} onClick={() => reprocessar(true)}>Reprocessar lote completo</button>
           {lote?.tem_gabarito && <button className={button} onClick={() => setVerAcerto(v => !v)}>{verAcerto ? 'Ocultar acerto' : 'Ver acerto'}</button>}</div>}
         {loteAtivo && verAcerto && <PainelAcerto loteId={loteAtivo} />}
         {lote?.regras_aplicadas?.length > 0 && <p className="text-xs text-slate-500">Regras de separação deste lote: {lote.regras_aplicadas.map(r => `“${r.texto}”`).join(', ')}</p>}
@@ -143,7 +159,7 @@ export default function Documents() {
           {aberto.regras_aplicadas?.length > 0 && <p className="text-xs text-indigo-700">Regra aplicada: {aberto.regras_aplicadas.join('; ')}</p>}
           {aberto.alertas?.length > 0 && <ul className="list-disc pl-5 text-xs text-rose-700">{aberto.alertas.map(a => <li key={a.codigo + a.evidencia}>{a.mensagem} — {a.evidencia}</li>)}</ul>}
           {aberto.resumo && <p className="text-sm text-slate-700">{aberto.resumo}</p>}
-          <div className="flex gap-3 overflow-x-auto">{Array.from({ length: aberto.n_paginas }, (_, i) => aberto.pagina_inicio + i).map(n => <figure key={n} className="min-w-28 text-xs text-slate-500"><img className="w-28 border" src={`${api.defaults.baseURL}/lotes/${aberto.lote_id}/paginas/${n}/imagem?thumb=true`} alt={`Página ${n + 1}`} /><figcaption>Página {n + 1}</figcaption></figure>)}</div>
+          <div className="flex gap-3 overflow-x-auto">{Array.from({ length: aberto.n_paginas }, (_, i) => aberto.pagina_inicio + i).map(n => <figure key={n} className="min-w-28 text-xs text-slate-500"><AuthenticatedImage className="w-28 border" src={`/lotes/${aberto.lote_id}/paginas/${n}/imagem?thumb=true`} alt={`Página ${n + 1}`} /><figcaption>Página {n + 1}</figcaption></figure>)}</div>
           <div className="flex flex-wrap gap-2 items-center"><a className={button} href={`${api.defaults.baseURL}/documentos/${aberto.id}/pdf`} target="_blank" rel="noreferrer">Abrir PDF</a><button className={button} onClick={() => revisar('aprovar')}>Aprovar</button><button className={button} onClick={() => revisar('juntar_proximo')}>Juntar ao próximo</button></div>
           <div className="flex flex-wrap gap-2"><select aria-label="Tipo do documento" className={button} value={tipo} onChange={e => setTipo(e.target.value)}>{!tipos.some(t => t.codigo === tipo) && <option value={tipo}>{tipo}</option>}{tipos.map(t => <option key={t.codigo} value={t.codigo}>{t.nome}</option>)}</select><button className={button} onClick={() => revisar('alterar_tipo', { tipo })}>Alterar tipo</button></div>
           <div className="flex flex-wrap gap-2 items-center"><label className="text-sm" htmlFor="pagina-corte">Dividir a partir da página:</label><input id="pagina-corte" className="border rounded-lg px-3 py-2 text-sm w-24" type="number" min={aberto.pagina_inicio + 2} max={aberto.pagina_fim + 1} value={corte} onChange={e => setCorte(e.target.value)} /><button className={button} disabled={!corte} onClick={() => revisar('dividir', { pagina_corte: Number(corte) - 1 })}>Dividir</button></div>

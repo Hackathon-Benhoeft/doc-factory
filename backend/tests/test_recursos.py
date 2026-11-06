@@ -181,7 +181,7 @@ def test_worker_atende_lote_de_prioridade_maior_primeiro():
 
 
 # ------------------------------------------------------------------ login e perfis
-def test_cadastro_cria_analista_e_autentica(monkeypatch, processado):
+def test_cadastro_cria_revisor_e_autentica(monkeypatch, processado):
     c, _ = processado
     monkeypatch.setattr(settings, "API_KEY", "chave-de-integracao")
     r = c.post("/auth/registrar", json={
@@ -191,13 +191,13 @@ def test_cadastro_cria_analista_e_autentica(monkeypatch, processado):
         "perfil": "admin",
     })
     assert r.status_code == 201, r.text
-    assert r.json()["perfil"] == "analista"
+    assert r.json()["perfil"] == "revisor"
 
     monkeypatch.setattr(settings, "AUTH_ATIVO", True)
     headers = {"Authorization": f"Bearer {r.json()['access_token']}"}
     assert c.get("/auth/eu", headers=headers).json() == {
         "login": "novo_analista",
-        "perfil": "analista",
+        "perfil": "revisor",
         "autenticado": True,
     }
     assert c.post("/auth/registrar", json={
@@ -217,7 +217,7 @@ def login_ativo(monkeypatch, processado):
     monkeypatch.setattr(settings, "AUTH_ATIVO", True)
     c, lote = processado
     with SessionLocal() as db:
-        for login, perfil in (("ana_analista", "analista"), ("rui_revisor", "revisor"), ("adm", "admin")):
+        for login, perfil in (("ana_revisora", "revisor"), ("rui_revisor", "revisor"), ("adm", "admin")):
             if not db.scalar(select(Usuario).where(Usuario.login == login)):
                 db.add(Usuario(login=login, nome=login, perfil=perfil, senha_hash=hash_senha("senha-de-teste")))
         db.commit()
@@ -236,15 +236,15 @@ def test_login_e_perfis(login_ativo, monkeypatch):
     assert c.get("/lotes").status_code == 401                                  # sem token
     assert c.post("/auth/login", data={"username": "adm", "password": "errada"}).status_code == 401
 
-    ana, rui, adm = token("ana_analista"), token("rui_revisor"), token("adm")
-    assert c.get("/auth/eu", headers=ana).json() == {"login": "ana_analista", "perfil": "analista", "autenticado": True}
+    ana, rui, adm = token("ana_revisora"), token("rui_revisor"), token("adm")
+    assert c.get("/auth/eu", headers=ana).json() == {"login": "ana_revisora", "perfil": "revisor", "autenticado": True}
     docs = c.get(f"/lotes/{lote['id']}/documentos", headers=ana).json()
-    assert docs                                                                  # analista consulta
+    assert docs                                                                  # revisor consulta e revisa
     alvo = docs[-1]["id"]
-    assert c.post(f"/documentos/{alvo}/revisao", json={"acao": "aprovar"}, headers=ana).status_code == 403
-    assert c.get(f"/documentos/{alvo}/pdf", params={"anonimizado": False}, headers=ana).status_code == 403
+    assert c.post(f"/documentos/{alvo}/revisao", json={"acao": "aprovar"}, headers=ana).status_code == 200
+    assert c.get(f"/documentos/{alvo}/pdf", params={"anonimizado": False}, headers=ana).status_code == 200
     assert c.get(f"/documentos/{alvo}/pdf", headers=ana).status_code == 200     # anonimizado liberado
-    assert c.get(f"/lotes/{lote['id']}/paginas/0/imagem", headers=ana).status_code == 403
+    assert c.get(f"/lotes/{lote['id']}/paginas/0/imagem", headers=ana).status_code == 200
     assert c.get(f"/lotes/{lote['id']}/paginas/0/imagem", headers=rui).status_code == 200
 
     r = c.post(f"/documentos/{alvo}/revisao", json={"acao": "aprovar", "usuario": "forjado"}, headers=rui)
@@ -253,7 +253,9 @@ def test_login_e_perfis(login_ativo, monkeypatch):
 
     assert c.get("/usuarios", headers=rui).status_code == 403
     novo = {"login": "novo_user", "nome": "Novo", "senha": "outra-senha-123", "perfil": "analista"}
-    assert c.post("/usuarios", json=novo, headers=adm).status_code == 201
+    criado = c.post("/usuarios", json=novo, headers=adm)
+    assert criado.status_code == 201
+    assert criado.json()["perfil"] == "revisor"
     assert c.post("/usuarios", json=novo, headers=adm).status_code == 409
 
 
@@ -272,6 +274,23 @@ def test_migracao_adiciona_colunas_novas(tmp_path, monkeypatch):
     with antigo.connect() as conn:
         assert conn.execute(text("SELECT prioridade FROM lotes WHERE id='l1'")).scalar() == 2   # default aplicado
     assert db_mod.migrar_colunas() == []                                                      # idempotente
+
+
+def test_migracao_promove_analistas_para_revisor(tmp_path, monkeypatch):
+    import app.db as db_mod
+
+    banco = create_engine(f"sqlite:///{tmp_path}/perfis.db")
+    with banco.begin() as conn:
+        conn.execute(text("CREATE TABLE usuarios (login VARCHAR(100), perfil VARCHAR(20))"))
+        conn.execute(text("INSERT INTO usuarios (login, perfil) VALUES "
+                          "('analista', 'analista'), ('revisor', 'revisor'), ('admin', 'admin')"))
+    monkeypatch.setattr(db_mod, "engine", banco)
+
+    assert db_mod.migrar_perfis_revisor() == 1
+    with banco.connect() as conn:
+        perfis = dict(conn.execute(text("SELECT login, perfil FROM usuarios")).all())
+    assert perfis == {"analista": "revisor", "revisor": "revisor", "admin": "admin"}
+    assert db_mod.migrar_perfis_revisor() == 0
 
 
 def test_health(processado):
