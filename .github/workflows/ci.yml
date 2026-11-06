@@ -1,6 +1,6 @@
 # Verificação automática a cada envio (push) e pull request:
 #   backend  → lint (ruff) + todos os testes (pytest), com Tesseract em português
-#   frontend → instala e gera o build de produção (pega erro de import/sintaxe)
+#   frontend → lint (eslint) + testes (node:test) + build de produção (pega erro de import/sintaxe)
 # Commit com ❌ = algo quebrou; clique em "Details" para ver o que foi.
 name: CI
 
@@ -51,4 +51,6 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
+      - run: npm run lint
+      - run: npm test
       - run: npm run build
