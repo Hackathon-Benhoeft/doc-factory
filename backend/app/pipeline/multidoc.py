@@ -204,6 +204,10 @@ def _normalizar(conteudo: bytes, nome: str) -> tuple[bytes, list[dict]] | None:
     if ext in EXT_IMAGEM:
         img = Image.open(io.BytesIO(conteudo))
         for i, quadro in enumerate(ImageSequence.Iterator(img)):
+            # o tamanho vem do cabeçalho (sem decodificar): recusa ANTES de alocar a imagem inteira na memória
+            if quadro.width * quadro.height / 1e6 > settings.MAX_MEGAPIXELS_PAGINA:
+                log.info("multidoc: quadro de %.0f MP grande demais; não analisa", quadro.width * quadro.height / 1e6)
+                return None
             png = _png_de_pil(ImageOps.exif_transpose(quadro.convert("RGB")))
             paginas.append(("png", png))
             rec = _dividir_imagem(png)
